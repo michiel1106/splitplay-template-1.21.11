@@ -65,7 +65,7 @@ public class PlayerUtils {
     }
 
     public static void sendTitle(Component text, int fadein, int stay, int fadeout, Player... players) {
-        ClientboundSetTitleTextPacket titleTextPacket = new ClientboundSetTitleTextPacket(text);
+        ClientboundSetActionBarTextPacket titleTextPacket = new ClientboundSetActionBarTextPacket(text);
         ClientboundSetTitlesAnimationPacket titlesAnimationPacket = new ClientboundSetTitlesAnimationPacket(fadein, stay, fadeout);
 
         for (Player player : players) {
@@ -74,20 +74,7 @@ public class PlayerUtils {
         }
     }
 
-    public static boolean isALinkedPlayer(Player player) {
-        if (SplitPlay.splitPlayerPairs.isEmpty()) return false;
-        AtomicBoolean returnVal = new AtomicBoolean(false);
 
-        SplitPlay.splitPlayerPairs.forEach((splitPlayerPair -> {
-            if (player.getUUID().equals(splitPlayerPair.player1uuid) || player.getUUID().equals(splitPlayerPair.player2uuid)) {
-                returnVal.set(true);
-            }
-        }));
-
-
-        return returnVal.get();
-
-    }
 
 
 }
