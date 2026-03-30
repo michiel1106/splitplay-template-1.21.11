@@ -1,10 +1,14 @@
 package bikerboys.splitplay;
 
 import bikerboys.splitplay.data.*;
+import bikerboys.splitplay.networking.*;
 import eu.midnightdust.lib.config.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.*;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
+import net.fabricmc.fabric.api.message.v1.*;
+import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
@@ -26,6 +30,11 @@ public class SplitPlay implements ModInitializer {
 	public void onInitialize() {
 
 		MidnightConfig.init(MOD_ID, SplitConfig.class);
+
+		PayloadTypeRegistry.playS2C().register(UpdateNumberPacket.ID, UpdateNumberPacket.CODEC);
+
+
+
 
 		ServerTickEvents.START_SERVER_TICK.register(server -> {
 
@@ -198,6 +207,43 @@ public class SplitPlay implements ModInitializer {
 	}
 
 
+
+	public static boolean isInactivePlayer(ServerPlayer player) {
+		for (SplitPlayerGroup group : groups) {
+			if (group.players.contains(player.getUUID())) {
+				if (group.activeIndex == group.players.indexOf(player.getUUID())) {
+					return false;
+				} else {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	private static void resetInactivePlayer(MinecraftServer server, UUID uuid) {
+		ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+		if (player == null) return;
+
+		var spawnPos = server.overworld().getServer().getRespawnData().pos();
+
+		// Find safe Y (top solid block)
+		int y = server.overworld().getHeight(
+				net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+				spawnPos.getX(),
+				spawnPos.getZ()
+		);
+
+		player.teleportTo(
+                spawnPos.getX() + 0.5,
+				y,
+				spawnPos.getZ() + 0.5
+        );
+
+		player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+	}
+
 	private static boolean unlinkPlayer(MinecraftServer server, ServerPlayer player) {
 
 		UUID uuid = player.getUUID();
@@ -212,13 +258,22 @@ public class SplitPlay implements ModInitializer {
 			if (g.players().contains(uuid)) {
 
 				List<UUID> updated = new ArrayList<>(g.players());
+				int removedIndex = updated.indexOf(uuid);
+
 				updated.remove(uuid);
 
-				// If group becomes empty or 1 player, remove it entirely
+				// If removed player was NOT active → reset them
+				if (removedIndex != g.activeIndex()) {
+					resetInactivePlayer(server, uuid);
+				}
+
 				if (updated.size() > 1) {
 					int newActive = g.activeIndex();
 
-					// Fix active index if needed
+					if (removedIndex < newActive) {
+						newActive--; // shift index left
+					}
+
 					if (newActive >= updated.size()) {
 						newActive = 0;
 					}
@@ -227,7 +282,6 @@ public class SplitPlay implements ModInitializer {
 				}
 
 				modified = true;
-
 			} else {
 				newGroups.add(g);
 			}
@@ -239,8 +293,28 @@ public class SplitPlay implements ModInitializer {
 			// ALSO update runtime groups
 			groups.removeIf(group -> {
 				if (group.players.contains(uuid)) {
+
+					int removedIndex = group.players.indexOf(uuid);
+
 					group.players.remove(uuid);
-					return group.players.size() <= 1;
+
+					if (removedIndex != group.activeIndex) {
+						resetInactivePlayer(server, uuid);
+					}
+
+					if (group.players.size() <= 1) {
+						return true;
+					}
+
+					if (removedIndex < group.activeIndex) {
+						group.activeIndex--;
+					}
+
+					if (group.activeIndex >= group.players.size()) {
+						group.activeIndex = 0;
+					}
+
+					return false;
 				}
 				return false;
 			});
@@ -262,8 +336,16 @@ public class SplitPlay implements ModInitializer {
 		for (SplitPlayState.Group g : state.getGroups()) {
 
 			if (g.players().contains(uuid)) {
+
+				// Reset ALL inactive players
+				for (int i = 0; i < g.players().size(); i++) {
+					if (i != g.activeIndex()) {
+						resetInactivePlayer(server, g.players().get(i));
+					}
+				}
+
 				modified = true;
-				continue; // skip → removes group
+				continue;
 			}
 
 			newGroups.add(g);
@@ -273,7 +355,19 @@ public class SplitPlay implements ModInitializer {
 			state.setData(new SplitPlayState.Packed(newGroups));
 
 			// ALSO update runtime groups
-			groups.removeIf(group -> group.players.contains(uuid));
+			groups.removeIf(group -> {
+				if (group.players.contains(uuid)) {
+
+					for (int i = 0; i < group.players.size(); i++) {
+						if (i != group.activeIndex) {
+							resetInactivePlayer(server, group.players.get(i));
+						}
+					}
+
+					return true;
+				}
+				return false;
+			});
 		}
 
 		return modified;

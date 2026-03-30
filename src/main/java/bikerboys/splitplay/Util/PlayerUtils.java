@@ -1,6 +1,8 @@
 package bikerboys.splitplay.Util;
 
 import bikerboys.splitplay.*;
+import bikerboys.splitplay.networking.*;
+import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.resources.*;
@@ -65,12 +67,11 @@ public class PlayerUtils {
     }
 
     public static void sendTitle(Component text, int fadein, int stay, int fadeout, Player... players) {
-        ClientboundSetActionBarTextPacket titleTextPacket = new ClientboundSetActionBarTextPacket(text);
-        ClientboundSetTitlesAnimationPacket titlesAnimationPacket = new ClientboundSetTitlesAnimationPacket(fadein, stay, fadeout);
+        UpdateNumberPacket packet = new UpdateNumberPacket(text.getString());
+
 
         for (Player player : players) {
-            ((ServerPlayer) player).connection.send(titleTextPacket);
-            ((ServerPlayer) player).connection.send(titlesAnimationPacket);
+            ServerPlayNetworking.send((ServerPlayer) player, packet);
         }
     }
 

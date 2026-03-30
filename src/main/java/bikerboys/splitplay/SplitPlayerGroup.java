@@ -37,6 +37,24 @@ public class SplitPlayerGroup {
             inactive.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 20, 20));
             inactive.setGameMode(GameType.SPECTATOR);
         }
+
+        for (UUID player : players) {
+            ServerPlayer player1 = server.getPlayerList().getPlayer(player);
+
+            switch (teleportDelay) {
+                case 200 -> PlayerUtils.sendTitle(Component.literal("10"), 20, 20, 20, player1);
+                case 180 -> PlayerUtils.sendTitle(Component.literal("9"), 20, 20, 20, player1);
+                case 160 -> PlayerUtils.sendTitle(Component.literal("8"), 20, 20, 20, player1);
+                case 140 -> PlayerUtils.sendTitle(Component.literal("7"), 20, 20, 20, player1);
+                case 120 -> PlayerUtils.sendTitle(Component.literal("6"), 20, 20, 20, player1);
+                case 100 -> PlayerUtils.sendTitle(Component.literal("5"), 20, 20, 20, player1);
+                case 80 -> PlayerUtils.sendTitle(Component.literal("4"), 20, 20, 20, player1);
+                case 60 -> PlayerUtils.sendTitle(Component.literal("3"), 20, 20, 20, player1);
+                case 40 -> PlayerUtils.sendTitle(Component.literal("2"), 20, 20, 20, player1);
+                case 20 -> PlayerUtils.sendTitle(Component.literal("1"), 20, 20, 20, player1);
+            }
+        }
+
     }
 
     private void initiateTeleport() {
@@ -56,22 +74,7 @@ public class SplitPlayerGroup {
         teleportDelay = SplitConfig.swapDelay;
 
 
-        for (UUID player : players) {
-            ServerPlayer player1 = server.getPlayerList().getPlayer(player);
 
-            switch (teleportDelay) {
-                case 200 -> PlayerUtils.sendTitle(Component.literal("10"), 20, 20, 20, player1);
-                case 180 -> PlayerUtils.sendTitle(Component.literal("9"), 20, 20, 20, player1);
-                case 160 -> PlayerUtils.sendTitle(Component.literal("8"), 20, 20, 20, player1);
-                case 140 -> PlayerUtils.sendTitle(Component.literal("7"), 20, 20, 20, player1);
-                case 120 -> PlayerUtils.sendTitle(Component.literal("6"), 20, 20, 20, player1);
-                case 100 -> PlayerUtils.sendTitle(Component.literal("5"), 20, 20, 20, player1);
-                case 80 -> PlayerUtils.sendTitle(Component.literal("4"), 20, 20, 20, player1);
-                case 60 -> PlayerUtils.sendTitle(Component.literal("3"), 20, 20, 20, player1);
-                case 40 -> PlayerUtils.sendTitle(Component.literal("2"), 20, 20, 20, player1);
-                case 20 -> PlayerUtils.sendTitle(Component.literal("1"), 20, 20, 20, player1);
-            }
-        }
 
 
 
