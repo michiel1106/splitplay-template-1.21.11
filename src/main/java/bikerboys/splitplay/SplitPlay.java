@@ -1,7 +1,6 @@
 package bikerboys.splitplay;
 
 import bikerboys.splitplay.data.*;
-import bikerboys.splitplay.networking.*;
 import eu.midnightdust.lib.config.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -12,12 +11,16 @@ import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.*;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import org.intellij.lang.annotations.*;
 
 import java.util.*;
 
 public class SplitPlay implements ModInitializer {
+
+	public static final ResourceLocation ID = new ResourceLocation("splitplay", "update_number");
 
 	public static final String MOD_ID = "splitplay";
 
@@ -31,7 +34,8 @@ public class SplitPlay implements ModInitializer {
 
 		MidnightConfig.init(MOD_ID, SplitConfig.class);
 
-		PayloadTypeRegistry.playS2C().register(UpdateNumberPacket.ID, UpdateNumberPacket.CODEC);
+
+
 
 
 
@@ -226,7 +230,7 @@ public class SplitPlay implements ModInitializer {
 		ServerPlayer player = server.getPlayerList().getPlayer(uuid);
 		if (player == null) return;
 
-		var spawnPos = server.overworld().getServer().getRespawnData().pos();
+		var spawnPos = player.getRespawnPosition();
 
 		// Find safe Y (top solid block)
 		int y = server.overworld().getHeight(
@@ -379,8 +383,13 @@ public class SplitPlay implements ModInitializer {
 		UUID addUUID = toAdd.getUUID();
 
 		SplitPlayState state = getState(server);
-		List<SplitPlayState.Group> newGroups = new ArrayList<>();
 
+		// ❗ NEW CHECK
+		if (isInAnyGroup(state, addUUID)) {
+			return false;
+		}
+
+		List<SplitPlayState.Group> newGroups = new ArrayList<>();
 		boolean modified = false;
 
 		for (int i = 0; i < state.getGroups().size(); i++) {
@@ -389,19 +398,13 @@ public class SplitPlay implements ModInitializer {
 
 			if (g.players().contains(targetUUID)) {
 
-				if (g.players().contains(addUUID)) {
-					newGroups.add(g);
-					continue;
-				}
-
 				List<UUID> updated = new ArrayList<>(g.players());
 				updated.add(addUUID);
 
-				// --- SAVE DATA ---
 				newGroups.add(new SplitPlayState.Group(updated, g.activeIndex()));
 				modified = true;
 
-				// --- RUNTIME FIX (THIS WAS MISSING) ---
+				// runtime sync
 				SplitPlayerGroup runtimeGroup = groups.get(i);
 				runtimeGroup.players.add(addUUID);
 
@@ -429,16 +432,32 @@ public class SplitPlay implements ModInitializer {
 		}
 	}
 
+	private static boolean isInAnyGroup(SplitPlayState state, UUID uuid) {
+		return groups.stream()
+				.anyMatch(g -> g.players.contains(uuid));
+	}
+
+
 	private static void createGroup(MinecraftServer server, List<ServerPlayer> players) {
+		SplitPlayState state = getState(server);
+
+		for (ServerPlayer player : players) {
+			if (isInAnyGroup(state, player.getUUID())) {
+				return; // or send error message
+			}
+		}
+
 		List<UUID> uuids = players.stream().map(ServerPlayer::getUUID).toList();
 
 		groups.add(new SplitPlayerGroup(uuids, server));
-
-		SplitPlayState state = getState(server);
 		state.addGroup(uuids);
 	}
 
 	public static SplitPlayState getState(MinecraftServer server) {
-		return server.overworld().getDataStorage().computeIfAbsent(SplitPlayState.TYPE);
+		return server.overworld().getDataStorage().computeIfAbsent(
+				SplitPlayState::load,   // load from NBT
+				SplitPlayState::new,    // create new if absent
+				"splitplay_groups"      // unique ID
+		);
 	}
 }

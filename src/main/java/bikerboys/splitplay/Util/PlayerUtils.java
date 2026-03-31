@@ -1,7 +1,7 @@
 package bikerboys.splitplay.Util;
 
 import bikerboys.splitplay.*;
-import bikerboys.splitplay.networking.*;
+import static bikerboys.splitplay.SplitPlay.ID;
 import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.protocol.game.*;
@@ -33,45 +33,51 @@ public class PlayerUtils {
     }
 
     public static void setToPlayerPosition(ServerPlayer target, ServerPlayer subject) {
-        PositionMoveRotation targetPMR = PositionMoveRotation.of(target);
-        PositionMoveRotation subjectPMR = PositionMoveRotation.of(subject);
+        // Store target data
+        ServerLevel targetLevel = target.serverLevel();
+        double targetX = target.getX();
+        double targetY = target.getY();
+        double targetZ = target.getZ();
+        float targetYaw = target.getYRot();
+        float targetPitch = target.getXRot();
 
-        ServerLevel targetLevel = target.level();
-        ServerLevel subjectLevel = subject.level();
+        // Store subject data
+        ServerLevel subjectLevel = subject.serverLevel();
+        double subjectX = subject.getX();
+        double subjectY = subject.getY();
+        double subjectZ = subject.getZ();
+        float subjectYaw = subject.getYRot();
+        float subjectPitch = subject.getXRot();
 
-        // Swap positions + dimensions
+        // Swap positions
         target.teleportTo(
                 subjectLevel,
-                subjectPMR.position().x,
-                subjectPMR.position().y,
-                subjectPMR.position().z,
-                Set.of(),
-                subjectPMR.yRot(),
-                subjectPMR.xRot(),
-                false
+                subjectX,
+                subjectY,
+                subjectZ,
+                subjectYaw,
+                subjectPitch
         );
 
         subject.teleportTo(
                 targetLevel,
-                targetPMR.position().x,
-                targetPMR.position().y,
-                targetPMR.position().z,
-                Set.of(),
-                targetPMR.yRot(),
-                targetPMR.xRot(),
-                false
+                targetX,
+                targetY,
+                targetZ,
+                targetYaw,
+                targetPitch
         );
-
-
-
     }
 
     public static void sendTitle(Component text, int fadein, int stay, int fadeout, Player... players) {
-        UpdateNumberPacket packet = new UpdateNumberPacket(text.getString());
+
+
 
 
         for (Player player : players) {
-            ServerPlayNetworking.send((ServerPlayer) player, packet);
+            net.minecraft.network.FriendlyByteBuf buf = PacketByteBufs.create();
+            buf.writeVarInt(Integer.parseInt(text.getString()));
+            ServerPlayNetworking.send((ServerPlayer) player, ID, buf);
         }
     }
 

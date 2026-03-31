@@ -2,12 +2,14 @@ package bikerboys.splitplay;
 
 import bikerboys.splitplay.Util.PlayerUtils;
 import bikerboys.splitplay.data.*;
+import net.minecraft.core.*;
 import net.minecraft.network.chat.*;
+import net.minecraft.resources.*;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.*;
 
 import java.util.*;
 
@@ -81,18 +83,24 @@ public class SplitPlayerGroup {
     }
 
     private void moveData(ServerPlayer fromActivePlayer, ServerPlayer toInActivePlayer) {
-        double fallDistance = fromActivePlayer.fallDistance;
+        float fallDistance = fromActivePlayer.fallDistance;
         float health = fromActivePlayer.getHealth();
         int airSupply = fromActivePlayer.getAirSupply();
         int totalExperience = fromActivePlayer.totalExperience;
 
-        ServerPlayer.RespawnConfig respawnConfig = fromActivePlayer.getRespawnConfig();
+
+        float respawnAngle = fromActivePlayer.getRespawnAngle();
+        ResourceKey<Level> respawnDimension = fromActivePlayer.getRespawnDimension();
+        BlockPos respawnPosition = fromActivePlayer.getRespawnPosition();
 
 
-        toInActivePlayer.fallDistance = fallDistance; toInActivePlayer.setHealth(health);
+
+        toInActivePlayer.fallDistance = fallDistance;
+        toInActivePlayer.setHealth(health);
         toInActivePlayer.setAirSupply(airSupply);
         toInActivePlayer.giveExperiencePoints(totalExperience - toInActivePlayer.totalExperience);
-        toInActivePlayer.setRespawnPosition(respawnConfig, false); }
+        toInActivePlayer.setRespawnPosition(respawnDimension, respawnPosition, respawnAngle, false, false);
+    }
 
     private void cyclePlayer() {
         activeIndex = (activeIndex + 1) % players.size();
